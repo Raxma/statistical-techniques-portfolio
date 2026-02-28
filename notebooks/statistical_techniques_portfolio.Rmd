@@ -1,0 +1,1267 @@
+---
+title: "Assessment"
+author: '100707631'
+date: "2023-12-21"
+output:
+  word_document: default
+  html_document:
+    theme: united
+    highlight: tango
+  pdf_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Install Required Packages
+
+```{r}
+options(repos = c(CRAN = "https://cran.rstudio.com"))
+install.packages("quantmod")
+install.packages("tidyverse") 
+install.packages("zoo")
+install.packages("dunn.test")
+install.packages("caret")
+install.packages("caTools")
+install.packages("mlbench")
+```
+
+#### 1.4.2 Load Necessary Libraries
+
+```{r}
+library(quantmod) 
+library(tidyverse) 
+library(zoo)
+library(ggplot2)
+library(stats)
+library(dunn.test)
+library(mlbench)
+library(caret)
+library(caTools)
+library(MASS)
+```
+
+# 1. Impact of Corona Pandemic on Apple's Stock Prices
+
+## Paired T-Test
+
+### **Purpose**
+
+To compared stock prices of Apple in two specific periods (pre-pandemic
+vs. during-pandemic) to see if there was a significant difference in the
+mean closing prices between these two specific time frames. For that I
+took pre-pandemic period (Jan 2019 to Dec 2019) and during pandemic
+period (Jan 2020 to Dec 2020). The test compared each day from 2019 to
+each day from 2020. First I conducted Paired T-test (Parametric test)
+and after that I ran Wilcoxon Singned-Rank Test (non-parametric test) to
+compare the results.
+
+Null Hypothesis: There is no difference in the mean stock prices between
+the two periods
+
+**Pre-Pandemic Period**
+
+```{r}
+# Set the stock symbol, start date, and end date for the analysis
+stock_symbol= "AAPL"
+start_date4 <- "2019-01-01"
+end_date4 <- "2019-12-31"
+# Fetch historical stock price data from Yahoo Finance using quantmod
+getSymbols(stock_symbol, src = "yahoo", from = start_date4, to = end_date4)
+pre_pandemic <- Cl(get(stock_symbol))
+print(pre_pandemic)
+
+```
+
+**Pandemic Period**
+
+```{r}
+# Set the stock symbol, start date, and end date for the analysis
+start_date5 <- "2020-01-01"
+end_date5 <- "2020-12-31"
+# Fetch historical stock price data from Yahoo Finance using quantmod
+getSymbols(stock_symbol, src = "yahoo", from = start_date5, to = end_date5)
+During_pandemic <- Cl(get(stock_symbol))
+```
+
+### Cleaning Data
+
+```{r}
+print(length(pre_pandemic))
+print(length(During_pandemic))
+
+# Ensure equal length
+min_length <- min(length(pre_pandemic), length(During_pandemic))
+pre_pandemic_adjusted <- head(pre_pandemic, min_length)
+During_pandemic_adjusted <- head(During_pandemic, min_length)
+
+print(length(pre_pandemic_adjusted))
+print(length(During_pandemic_adjusted))
+
+sum(is.na(pre_pandemic_adjusted))
+sum(is.na(During_pandemic_adjusted))
+
+str(pre_pandemic_adjusted)
+str(During_pandemic_adjusted)
+
+# Convert 'xts' objects to numeric vectors
+pre_pandemic_numeric <- as.numeric(coredata(pre_pandemic_adjusted$AAPL.Close))
+During_pandemic_numeric <- as.numeric(coredata(During_pandemic_adjusted$AAPL.Close))
+```
+
+### **Checking Normality of Data**
+
+```{r}
+# Calculate the differences
+differences <- pre_pandemic_numeric - During_pandemic_numeric
+```
+
+### **Performing Visual Inspection**
+
+H0: Data is normally distributed
+
+```{r}
+# Histogram for visual inspection
+hist(differences, main="Histogram of Differences", xlab="Differences", col="blue")
+
+
+```
+
+```{r}
+
+# Q-Q Plot for visual inspection
+qqnorm(differences)
+qqline(differences, col="red")
+```
+
+```{r}
+
+# Shapiro-Wilk normality test
+shapiro.test(differences)
+```
+
+
+The null hypothesis is not true as p-value is lower than the set p
+value. Which means the data is not normally distributed.
+
+### Performing Paired T-Test
+
+```{r}
+
+# Perform the paired t-test on these numeric vectors
+t.test_result <- t.test(pre_pandemic_numeric, During_pandemic_numeric, paired = TRUE)
+
+# Print the result of the t-test
+print(t.test_result)
+
+
+```
+
+**Analysis**
+
+Paired T-test compares the mean stock prices between two periods,
+pre-pandemic and during the pandemic, for Apple stock. The paired t-test
+is appropriate here because it compares the same stock across two
+different time periods, thus accounting for the pairing of data points.
+The test results rejected the null hypothesis.
+
+Here's a breakdown of the result:
+
+-   **t-value (-42.612):** This is a measure of the difference between
+    the two periods relative to the variability in the sample data. A
+    very high or very low t-value (far from zero) indicates a
+    significant difference. In my case, -42.612 is a large negative
+    value, indicating a significant decrease in the stock prices during
+    the pandemic compared to the pre-pandemic period.
+
+-   **Degrees of freedom (df = 250):** This is calculated based on the
+    number of paired observations in my data. It's used to determine the
+    critical value of t at a given significance level.
+
+-   **p-value (\< 2.2e-16):** This is extremely small, much lower than
+    typical significance levels (like 0.05 or 0.01), suggesting that the
+    observed difference in means is highly unlikely to have occurred by
+    random chance. In other words, there's a statistically significant
+    difference in the stock prices between the two periods.
+
+-   **95% Confidence Interval (-45.05698 to -41.07599):** This interval
+    gives a range of values that are likely to contain the true mean
+    difference between the two periods. The fact that this interval does
+    not include 0 strengthens the conclusion that there's a significant
+    difference.
+
+-   **Mean difference (-43.06648):** This is the average difference in
+    stock prices between the pre-pandemic and during pandemic periods.
+    Since it's negative, it suggests that the stock price was, on
+    average, lower during the pandemic than before it.
+
+### Visualization
+
+```{r}
+plot(pre_pandemic_numeric, type='l', col='blue', main='AAPL Stock Prices: Pre vs. During Pandemic', xlab='Date', ylab='Closing Price', ylim = c(0,150))
+lines(During_pandemic_numeric, col='red')
+legend("topright", legend=c("Pre-Pandemic", "During Pandemic"), col=c("blue", "red"), lty=1)
+
+```
+
+#### **Graph Analysis**
+
+This graph represents the closing prices of AAPL (Apple Inc.) stock
+before and during the pandemic, plotted over time. Here's the breakdown
+of the graph:
+
+-   **X-axis:** The x-axis is labeled as 'Date'. It represents time,
+    although specific dates are not given. The data points likely
+    correspond to trading days, with the index starting at 0 and going
+    up to around 250, which would roughly correspond to the number of
+    trading days in a year (minus weekends and holidays).
+
+-   **Y-axis:** The y-axis is labeled as 'Closing Price' and ranges from
+    0 to 150. This axis represents the closing price of AAPL stock for
+    each day in the dataset.
+
+-   **Blue Line (Pre-Pandemic):** This line represents the closing
+    prices of AAPL stock during the pre-pandemic period. The data points
+    are connected by a line (indicated by type='l' in the code), and the
+    line is colored blue.
+
+-   **Red Line (During Pandemic):** This line represents the closing
+    prices of AAPL stock during the pandemic period. It is overlaid on
+    the same graph as the pre-pandemic data and is colored red.
+
+Analyzing the graph, we can observe the following:
+
+-   The blue line (pre-pandemic) starts off lower and shows some
+    fluctuation over time but tends to stay below a certain level
+    throughout the period.
+
+-   The red line (during the pandemic) starts at a higher level than
+    where the blue line left off, indicating an increase in the stock
+    price at the beginning of the pandemic period compared to the end of
+    the pre-pandemic period.
+
+-   The red line shows more volatility and overall trends upwards,
+    reaching higher closing prices than the pre-pandemic period. There
+    appears to be a general upward trend in the stock price during the
+    pandemic, which could be attributed to various factors such as
+    changes in market conditions, investor sentiment, and company
+    performance, among others.
+
+### 2.4 Wilcoxon Singned-Rank Test
+
+Null Hypothesis: There is no difference in the median stock prices
+between the two periods
+
+Here's how the Wilcoxon signed-rank test worked:
+
+-   **Pairing of Data:** Each observation from one period is paired with
+    the corresponding observation from the other period. In the context
+    of stock prices, each day's closing price in the pre-pandemic period
+    is paired with the closing price on the same day during the
+    pandemic.
+
+-   **Ranking of Differences:** For each pair, calculated the difference
+    and then rank these differences, ignoring the sign. The smallest
+    non-zero difference gets rank 1, the second smallest rank 2, and so
+    on.
+
+-   **Sum of Ranks:** Sum the ranks for the differences that were
+    positive and sum the ranks for the differences that were negative.
+
+-   **Test Statistic (V):** The test statistic for the Wilcoxon
+    signed-rank test is the smaller of the two sums of ranks. If there's
+    a large difference between these sums, it suggests a difference
+    between the two periods.
+
+-   **Significance:** The p-value is calculated from the test statistic
+    to determine the significance of the result. If the p-value is less
+    than the chosen alpha level (0.05), then the null hypothesis of no
+    difference is rejected.
+
+```{r}
+# Perform the Wilcoxon signed-rank test
+wilcox_test_result <- wilcox.test(pre_pandemic_numeric, During_pandemic_numeric, paired = TRUE)
+
+print(wilcox_test_result)
+
+```
+
+#### Analyzing the Wilcoxon Test Output:
+
+-   **Test Statistic (V = 0):** This suggests that all the ranks for the
+    differences pointed in the same direction (i.e., either all positive
+    or all negative). This indicates a consistent difference between the
+    pre-pandemic and during-pandemic prices.
+
+-   **p-value (\< 2.2e-16):** This extremely low p-value indicates that
+    the observed result is highly unlikely under the null hypothesis.
+    Therefore, we reject the null hypothesis that there is no difference
+    in the mean ranks of stock prices between the two periods.
+
+-   **Alternative Hypothesis:** The alternative hypothesis stated by the
+    test is that there is a true location shift (difference in medians)
+    between the pre-pandemic and during-pandemic periods. The test
+    result supports this alternative hypothesis.
+
+#### 2.4.1 Comparison between paired test result and Wilcoxon test result
+
+Both tests give a very significant result (p-value \< 2.2e-16),
+indicating that there is a statistically significant difference between
+the two time periods.
+
+-   Despite the violation of assumptions for the paired t-test, the
+    p-value is extremely low for both tests, which can happen with large
+    sample sizes or with very pronounced effects. The Central Limit
+    Theorem might be at play here, helping the t-test to still give a
+    robust result despite the assumption violation.
+
+-   The paired t-test provides an estimate of the mean difference and a
+    confidence interval, which are not available from the Wilcoxon test.
+    The Wilcoxon test, on the other hand, indicates a significant shift
+    in the median value without assuming normality.
+
+# 2. Comparison of stock prices using ANOVA
+
+**Purpose**
+
+Performing ANOVA test to compare the average closing prices across three
+distinct periods (pre-pandemic, during-pandemic, post-pandemic).
+
+H0: equal average closing prices across the three time periods
+
+This is how ANOVA worked:
+
+-   Grouping: First, we need to have independent samples grouped by a
+    factor. In my case, the factor is 'TimePeriod' with three levels:
+    pre-pandemic, during-pandemic, and post-pandemic.
+
+-   Assumptions: ANOVA assumes that the data within and across groups
+    are normally distributed and that the variances are equal
+    (homoscedasticity). It also assumes that the observations are
+    independent.
+
+-   Null Hypothesis (H0): The null hypothesis in ANOVA states that there
+    are no differences between the group means, and any observed
+    differences are due to random variation.
+
+-   Alternative Hypothesis (Ha): The alternative hypothesis is that at
+    least one group mean is different from the others.
+
+### Fetching Post Pandemic Stock Prices
+
+```{r}
+stock_symbol <- "AAPL"
+start_date_p <- "2021-01-01"
+end_date_p <- "2022-12-31"
+
+
+getSymbols(stock_symbol, src = "yahoo", from = start_date_p, to = end_date_p)
+post_pandemic <- Cl(get(stock_symbol))
+
+
+```
+
+### Extract the closing prices and create a vector for time periods
+
+```{r}
+pre_pandemic_prices <- coredata(pre_pandemic)
+during_pandemic_prices <- coredata(During_pandemic)
+post_pandemic_prices <- coredata(post_pandemic)
+
+pre_pandemic_period <- rep("Pre-Pandemic", length(pre_pandemic_prices))
+during_pandemic_period <- rep("During-Pandemic", length(during_pandemic_prices))
+post_pandemic_period <- rep("Post-Pandemic", length(post_pandemic_prices))
+
+```
+
+### Combine the data into a single dataframe
+
+```{r}
+
+combined_data <- data.frame(
+  ClosingPrice = c(pre_pandemic_prices, during_pandemic_prices, post_pandemic_prices),
+  TimePeriod = factor(c(pre_pandemic_period, during_pandemic_period, post_pandemic_period))
+)
+
+
+```
+
+### Performing ANOVA
+
+```{r}
+
+anova_result <- aov(ClosingPrice ~ TimePeriod, data = combined_data)
+summary(anova_result)
+```
+
+**ANOVA Output Interpretation**
+
+The very small p-value (less than 0.0000000000000002) means that there
+is strong statistical evidence to reject the null hypothesis of equal
+average closing prices across the three time periods (pre-pandemic,
+during-pandemic, post-pandemic). In other words, the average closing
+price of AAPL is significantly different across at least two of the
+compared time periods.
+
+### Visual Respresentation (Box plot)
+
+```{r}
+ggplot(combined_data, aes(x = TimePeriod, y = ClosingPrice)) +
+  geom_boxplot() +
+  labs(title = "Box Plot of AAPL Closing Prices by Time Period",
+       x = "Time Period",
+       y = "Closing Price")
+```
+
+### TUKEY HSD Test
+
+Tukey's test compares the means of every group to the means of every
+other group. This is important after an ANOVA because, while ANOVA can
+tell you that there is a significant difference somewhere among the
+groups, it doesn't specify where that difference lies.
+
+```{r}
+# Perform Tukey's HSD test
+tukey_test <- TukeyHSD(anova_result)
+
+# Print the results of the Tukey test
+print(tukey_test)
+
+```
+
+**Pairwise Mean Differences Analysis**
+
+1.  **Post-Pandemic vs. During-Pandemic**:
+
+    -   Difference (**diff**): +52.69956
+
+    -   The mean closing price during the post-pandemic period is higher
+        than the during-pandemic period by approximately 52.70 units.
+
+    -   The 95% confidence interval (**`lwr`** to **`upr`**) does not
+        contain 0, which indicates a statistically significant
+        difference.
+
+    -   The p-value (**`p adj`**) is 0, meaning the difference is
+        significant at the 95% confidence level.
+
+2.  **Pre-Pandemic vs. During-Pandemic**:
+
+    -   Difference (**`diff`**): -43.21995
+
+    -   The mean closing price during the pre-pandemic period is lower
+        than the during-pandemic period by approximately 43.22 units.
+
+    -   The 95% confidence interval does not contain 0, indicating a
+        statistically significant difference.
+
+    -   The p-value is 0, signifying the difference is significant at
+        the 95% confidence level.
+
+3.  **Pre-Pandemic vs. Post-Pandemic**:
+
+    -   Difference (**`diff`**): -95.91952
+
+    -   The mean closing price during the pre-pandemic period is lower
+        than the post-pandemic period by approximately 95.92 units.
+
+    -   The 95% confidence interval does not contain 0, indicating this
+        difference is statistically significant.
+
+    -   The p-value is 0, meaning the difference is significant at the
+        95% confidence level.
+
+**Interpretation**
+
+All pairwise comparisons are statistically significant, indicating that
+the average closing prices of Apple's stock are significantly different
+in all three periods:
+
+-   The stock price increased significantly from the during-pandemic
+    period to the post-pandemic period.
+
+-   The stock price decreased significantly from the pre-pandemic period
+    to the during-pandemic period.
+
+-   There is a significant increase in the stock price from the
+    pre-pandemic to the post-pandemic period.
+
+### **Conclusions**
+
+These results suggest that the pandemic had a noticeable impact on the
+stock price of Apple, with prices being significantly lower during the
+pandemic compared to both before and after. The post-pandemic recovery
+also indicates a significant rise in stock prices compared to
+pre-pandemic levels
+
+## Kruskal-Wallis H test
+
+To apply the Kruskal-Wallis H test, which is the non-parametric
+alternative to ANOVA, it will need to have the data organized by groups,
+just as it would for ANOVA.The Kruskal-Wallis H test will test the null
+hypothesis that the median of all groups is equal, against the
+alternative hypothesis that at least one group has a different median.
+
+H0: The median of all groups is equal
+
+H1: At least one group has a different median.
+
+```{r}
+kruskal.test_result <- kruskal.test(ClosingPrice ~ TimePeriod, data = combined_data)
+
+# Print the result of the Kruskal-Wallis H test
+print(kruskal.test_result)
+```
+
+**Output Interpretation**
+
+Given that the p-value is extremely small, we can reject the null
+hypothesis of the Kruskal-Wallis test, which states that the medians of
+all groups are equal. This means that the test has found strong evidence
+to suggest that not all the groups have the same median closing price.
+
+However, while the Kruskal-Wallis test tells us that there is a
+significant difference, it does not tell us which specific groups are
+different from each other. To identify the specific groups between which
+there are differences, you would need to conduct post-hoc pairwise
+comparisons. This is typically done with a Dunn's test, which compares
+the medians of the groups in a pairwise manner while adjusting for the
+multiple comparisons problem.
+
+### Dunn Test
+
+```{r}
+# Run the Dunn test for post-hoc analysis after Kruskal-Wallis
+dunn_test_result <- dunn.test(combined_data$ClosingPrice, combined_data$TimePeriod, method="bonferroni")
+
+# Print the Dunn test result
+print(dunn_test_result)
+```
+
+**Output Interpretation**
+
+The output from the Dunn test provides the following information:
+
+1.  **Chi-squared**: The Chi-squared statistic from the Kruskal-Wallis
+    test is 827.3926, which is just a reference point already known from
+    the initial test.
+
+2.  **Z-values**: These are the standardized differences between the
+    ranks of the groups. There are three Z-values provided, each
+    corresponding to a pairwise comparison between the groups:
+
+    -   During-Pandemic vs. Post-Pandemic: -16.567341
+
+    -   During-Pandemic vs. Pre-Pandemic: 9.659462
+
+    -   Post-Pandemic vs. Pre-Pandemic: 27.691807
+
+    The negative Z-value indicates that the median of the first group
+    (During-Pandemic) is lower than that of the second group
+    (Post-Pandemic), while positive Z-values indicate the opposite.
+
+3.  **P-values**: These are the p-values for each of the pairwise
+    comparisons:
+
+    -   During-Pandemic vs. Post-Pandemic: 6.00e-62
+
+    -   During-Pandemic vs. Pre-Pandemic: 2.24e-22
+
+    -   Post-Pandemic vs. Pre-Pandemic: 4.38e-169
+
+    These p-values are very low, indicating that there are significant
+    differences between each pair of groups.
+
+4.  **Adjusted P-values**: These are the p-values adjusted for multiple
+    comparisons using the Bonferroni method:
+
+    -   During-Pandemic vs. Post-Pandemic: 1.80e-61
+
+    -   During-Pandemic vs. Pre-Pandemic: 6.72e-22
+
+    -   Post-Pandemic vs. Pre-Pandemic: 1.31e-168
+
+    Even after adjustment for multiple comparisons, the p-values remain
+    extremely low, indicating strong evidence against the null
+    hypothesis in each pairwise comparison.
+
+5.  **Comparisons**: This indicates which groups were compared to each
+    other.
+
+The results suggest an increase in stock prices from the pre-pandemic to
+during-pandemic period and then an even more significant increase from
+the during-pandemic to the post-pandemic period. These results matches
+with what we got from ANOVA test.
+
+# 3. Impact of the pandemic on Apple Inc.'s (AAPL) stock price and trading volume
+
+**Purpose**
+
+The primary objective of this analysis is to investigate the
+relationship between the closing prices of Apple Inc. (AAPL) and its
+trading volume. This study is predicated on the hypothesis that trading
+volume, as a measure of market activity and investor interest, can have
+a significant impact on the stock price. By examining this relationship,
+the analysis aims to uncover insights into how market participation
+influences the value of AAPL shares. Closing value is dependent variable
+and trading volume is independent variable.
+
+### Getting Trading Volume Data
+
+```{r}
+stock_symbol <- "AAPL"
+start_date_t <- as.Date("2019-01-01")
+end_date_t <- as.Date("2019-12-01")  
+
+# Fetch the stock data
+getSymbols(stock_symbol, src = "yahoo", from = start_date_t, to = end_date_t)
+pre_aapl_volume <- Vo(get(stock_symbol))
+
+
+stock_symbol <- "AAPL"
+start_date_t1 <- as.Date("2020-01-01")
+end_date_t1 <- as.Date("2020-12-01")  
+getSymbols(stock_symbol, src = "yahoo", from = start_date_t1, to = end_date_t1)
+during_aapl_volume <- Vo(get(stock_symbol))
+
+stock_symbol <- "AAPL"
+start_date_t2 <- as.Date("2021-01-01")
+end_date_t2 <- as.Date("2022-12-01")  
+getSymbols(stock_symbol, src = "yahoo", from = start_date_t2, to = end_date_t2)
+post_aapl_volume <- Vo(get(stock_symbol))
+
+```
+
+### Combine all intervals in one dataframe
+
+```{r}
+# Combine data for each period into a dataframe
+length(pre_pandemic_prices)
+length(pre_aapl_volume)
+
+length(during_pandemic_prices)
+length(during_aapl_volume)
+
+length(post_pandemic_prices)
+length(post_aapl_volume)
+
+# Trimming the data (assuming the extra data points are at the end)
+pre_pandemic_prices <- pre_pandemic_prices[1:231]
+during_pandemic_prices <- during_pandemic_prices[1:231]
+post_pandemic_prices <- post_pandemic_prices[1:482]
+
+# Now recreate the data frames
+pre_pandemic_data <- data.frame(Price = pre_pandemic_prices, Volume = pre_aapl_volume, Period = "Pre-Pandemic")
+during_pandemic_data <- data.frame(Price = during_pandemic_prices, Volume = during_aapl_volume, Period = "During-Pandemic")
+post_pandemic_data <- data.frame(Price = post_pandemic_prices, Volume = post_aapl_volume, Period = "Post-Pandemic")
+
+# Combine into one dataframe
+combined_data <- rbind(pre_pandemic_data, during_pandemic_data, post_pandemic_data)
+
+```
+
+### **Visual Inspection**
+
+```{r}
+# Scatter plot for the pre-pandemic period
+ggplot(pre_pandemic_data, aes(x = pre_aapl_volume, y = pre_pandemic_prices)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Scatter Plot of AAPL Price vs Volume (Pre-Pandemic)",
+       x = "Volume",
+       y = "Closing Price") +
+  theme_minimal()
+
+
+```
+
+Here are some observations and analyses of the plot:
+
+1.  **Volume on the X-axis:** The volume is plotted on the horizontal
+    axis (X-axis) and is in the range from 0 to over 3 x 10\^8 (or 300
+    million). The volume represents the number of shares traded during a
+    single trading session.
+
+2.  **Closing Price on the Y-axis:** The closing price is plotted on the
+    vertical axis (Y-axis) and ranges approximately between \$40 and
+    above \$60. The closing price is the last price at which the stock
+    traded during a regular trading session on a given day.
+
+3.  **Data Points:** Each dot on the scatter plot represents a single
+    day's trading activity, with its position determined by that day's
+    trading volume (x-coordinate) and the stock's closing price
+    (y-coordinate).
+
+4.  **Density of Points:** There appears to be a higher concentration of
+    points with volumes in the lower range (closer to 0) and closing
+    prices around the \$50 to \$60 range. This suggests that on most
+    days, the trading volume was on the lower end of the spectrum, with
+    closing prices frequently settling in the middle of the price range.
+
+5.  **Outliers:** There are a few days with very high trading volumes
+    that stand out from the rest of the data points. It's not clear from
+    the plot whether these higher volumes are associated with higher or
+    lower closing prices, as the points are quite spread out.
+
+6.  **Trend Analysis:** The plot does not show a clear linear
+    relationship between volume and closing price. There's quite a bit
+    of scatter in the data points, indicating that the closing price of
+    AAPL stock during the pre-pandemic period was not strongly or
+    consistently associated with the trading volume.
+
+7.  **Opacity (alpha = 0.5):** The points are plotted with some
+    transparency, which is helpful for visualizing the density of the
+    points and understanding where there are overlaps. Where you see
+    darker areas, it indicates a higher number of trading days with
+    similar volume and price characteristics.
+
+8.  **Interpretation:** Without a clear trend, we can say that during
+    the pre-pandemic period, trading volume was not a reliable predictor
+    of the closing price for AAPL stock. Other factors not shown on this
+    chart are likely at play in determining the closing price.
+
+### **Performing Linear Regression**
+
+```{r}
+
+lm_model <- lm(Price ~ AAPL.Volume + Period, data = combined_data)
+summary(lm_model)
+
+```
+
+**Regression Test Output Interpretation**
+
+The negative coefficient for **`AAPL.Volume`** implies that an increase
+in trading volume is associated with a decrease in the stock price,
+although the effect size is small. This finding directly relates to the
+hypothesis about the impact of market activity and investor interest (as
+reflected by trading volume) on stock price. This result provides
+insights into how market participation (measured via trading volume)
+influences the value of AAPL shares. It suggests that higher trading
+volumes might be associated with periods of stock price decline, which
+could be due to various factors like market sell-offs, increased
+investor activity during price dips, etc.\
+The inclusion of the **`Period`** variable in regression model allows to
+assess how stock prices varied during different phases of the pandemic
+(pre, during, and post). The significant coefficients for the
+pre-pandemic and post-pandemic periods compared to the baseline
+(during-pandemic) show how the stock price differed across these times.
+
+# 4. Post Pandemic Comparison Between Apple and Microsoft Stocks
+
+**Problem Statement**
+
+A comparative analysis of AAPL and MSFT stock prices could provide
+valuable insights into their relative market performance over a
+specified time period.
+
+**Null Hypothesis**
+
+(HO): There is no significant difference in the average stock prices of
+Apple Inc. (AAPL) and Microsoft Corporation (MSFT) during the specified
+time period.
+
+This hypothesis sets the basis for the unpaired t-test, which will be
+used to statistically determine if the observed differences in average
+stock prices between AAPL and MSFT are significant or could have
+occurred by random chance. Rejecting this null hypothesis would imply
+that there is a statistically significant difference in the average
+stock prices of these two companies, providing valuable insights into
+their relative performance.
+
+## Unpaired T-Test
+
+### Fetch Microsoft Data from Yahoo Finance
+
+```{r}
+msft_symbol <- "MSFT"
+aapl_symbol <- "AAPL"
+
+start_date <- "2022-01-01" 
+end_date <- "2023-12-26"
+
+# Fetch AAPL data
+getSymbols(aapl_symbol, src = "yahoo", from = start_date, to = end_date)
+aapl_data <- Cl(get(aapl_symbol))
+print(aapl_data)
+
+# Fetch MSFT data
+getSymbols(msft_symbol, src = "yahoo", from = start_date, to = end_date)
+msft_data <- Cl(get(msft_symbol))
+print(msft_data)
+```
+
+### Prepare Data for the T-Test
+
+```{r}
+# Find the overlapping date range
+common_start_date <- max(index(aapl_data)[1], index(msft_data)[1])
+common_end_date <- min(tail(index(aapl_data), n=1), tail(index(msft_data), n=1))
+
+# Print the common date range
+print(paste("Common date range: ", common_start_date, " to ", common_end_date))
+
+# Truncate AAPL data to the common date range
+aapl_data_common <- window(aapl_data, start=common_start_date, end=common_end_date)
+
+# Truncate MSFT data to the common date range
+msft_data_common <- window(msft_data, start=common_start_date, end=common_end_date)
+
+```
+
+### Ensuring Exactly the Same Time Frame for Both AAPL and MSFT
+
+```{r}
+aapl_data_common <- window(aapl_data, start="2022-01-03", end="2023-12-22")
+msft_data_common <- window(msft_data, start="2022-01-03", end="2023-12-22")
+
+```
+
+### Running Unpaired Tests
+
+```{r}
+
+t_test_result <- t.test(aapl_data_common[,1], msft_data_common[,1])
+
+# Print the results
+print(t_test_result)
+
+```
+
+**Unpaired T-test Output Interpretation:**
+
+1.  **t-Statistic (t)**: -64.395
+
+    -   This is a measure of the difference between the two sample means
+        relative to the variability in data. The negative value
+        indicates that the mean stock price of AAPL is lower than that
+        of MSFT for the period analyzed.
+
+2.  **Degrees of Freedom (df)**: 677.21
+
+    -   This number, which can be a non-integer value in the Welch
+        t-test, indicates the degrees of freedom for the test. It's used
+        in determining the p-value.
+
+3.  **P-Value**: \< 2.2e-16
+
+    -   The p-value is extremely small, far below the common
+        significance level of 0.05. This suggests that the observed
+        difference in the average stock prices between AAPL and MSFT
+        during this period is statistically significant.
+
+4.  **Alternative Hypothesis**: True difference in means is not equal to
+    0
+
+    -   The test results strongly support the alternative hypothesis,
+        indicating that there is a significant difference in the average
+        stock prices of AAPL and MSFT.
+
+5.  **95 Percent Confidence Interval**: [-131.1592, -123.3975]
+
+    -   This interval suggests that the true difference in the mean
+        stock prices between AAPL and MSFT lies somewhere in this range.
+        Both ends of the interval are negative, reinforcing the finding
+        of a higher average price for MSFT compared to AAPL.
+
+6.  **Sample Estimates**: Mean of x (AAPL) = 163.4377, Mean of y (MSFT)
+    = 290.7161
+
+    -   The mean stock prices for AAPL and MSFT are provided, with MSFT
+        having a notably higher average stock price during the period.
+
+### Visualization
+
+```{r}
+
+#Converting xts objects into numerical data for boxplot
+aapl_prices <- as.numeric(coredata(aapl_data_common))
+msft_prices <- as.numeric(coredata(msft_data_common))
+
+
+# Creating a boxplot for AAPL and MSFT stock prices
+boxplot(aapl_prices, msft_prices, names = c("AAPL", "MSFT"), main="AAPL vs. MSFT Stock Prices", ylab="Closing Price")
+
+
+```
+
+The box plot visualizes the differences in stock prices between AAPL and
+MSFT and indicates that MSFT had higher median stock prices with a wider
+range of values. The fact that there's no overlap between the boxes of
+AAPL and MSFT suggests that the stock prices for these two companies
+were quite distinct, with MSFT consistently higher during this period.
+
+### Conclusion
+
+The significant difference in means, as evidenced by the unpaired
+t-test, indicates that MSFT's stock price was, on average, higher than
+AAPL's during the specified period. The wide gap in the confidence
+interval and the large magnitude of the t-statistic underscore the
+robustness of this difference.
+
+The results provide a clear statistical backing to the observation that
+Microsoft's stock has outperformed Apple's in terms of average stock
+price over the selected time frame.
+
+## Two-Sample Wilcoxon Rank Sum Test (Mann-Whitney)
+
+Since I've already found a significant difference with the Welch Two
+Sample t-test (a version of the t-test that does not assume equal
+variances), it will be interesting to see if the Mann-Whitney U test
+aligns with this finding despite not requiring the normality assumption.
+
+```{r}
+# Summary statistics for AAPL and MSFT data
+#summary(aapl_data)
+#summary(msft_data)
+
+# Check data types
+str(aapl_data)
+str(msft_data)
+
+# Check the range of dates for AAPL and MSFT
+range(index(aapl_data))
+range(index(msft_data))
+
+# Check if all dates in AAPL data are in MSFT data and vice versa
+all(index(aapl_data) %in% index(msft_data))
+all(index(msft_data) %in% index(aapl_data))
+
+# Find the overlapping date range
+common_start_date <- max(index(aapl_data)[1], index(msft_data)[1])
+common_end_date <- min(end(index(aapl_data)), end(index(msft_data)))
+
+# Print the common date range
+print(paste("Common date range: ", common_start_date, " to ", common_end_date))
+
+
+# Boxplot for visual inspection
+boxplot(as.numeric(aapl_data_common[,1]), as.numeric(msft_data_common[,1]),
+        names=c("AAPL", "MSFT"), main="Boxplot of Closing Prices")
+
+
+# Data has been cleaned and verified
+mw_test_result <- wilcox.test(aapl_prices, msft_prices)
+print(mw_test_result)
+
+```
+
+**Mann-Whitney Test's Output Interpretation**
+
+Given the p-value is extremely low, we can confidently reject the null
+hypothesis (H0) that there is no significant difference in the median
+stock prices between Apple Inc. (AAPL) and Microsoft Corporation (MSFT)
+during the specified time period.
+
+However, the W statistic of 0 is unusual and may indicate an extreme
+result. Typically, such a result could occur if one of the distributions
+is entirely above or below the other, leading to a situation where one
+group consistently has higher or lower values than the other group
+without any overlap. To be sure the results are right, we verified data
+integrity before conducting Wilcoxon Rank Sum Test.
+
+# 5. Market Movement Synchronization
+
+**Objective**: To understand the degree of synchronization between Apple
+and Microsoft's stock movements over the past two years using Pearson
+Correlation test.
+
+## Pearson Correlation Test
+
+```{r}
+
+correlation_coefficient <- cor(aapl_data_common, msft_data_common, method = "pearson")
+print(correlation_coefficient)
+
+```
+
+#### Pearson Correlation Test Output Interpretation:
+
+1.  **Strong Positive Correlation**: A coefficient of 0.937 indicates
+    that the movements in Apple's and Microsoft's stock prices are very
+    closely aligned. Generally, as the price of one goes up, the price
+    of the other tends to go up as well, and vice versa.
+
+2.  **Market and Sector Influences**: This high correlation might
+    suggest that both stocks are influenced by similar factors, such as
+    market trends, economic conditions, or developments in the
+    technology sector.
+
+### Visual Representation using Scatter Plot
+
+```{r}
+ggplot(data = data.frame(aapl_data_common, msft_data_common), aes(x = aapl_data_common, y = msft_data_common)) +
+  geom_point() + 
+  geom_smooth(method = "lm", col = "blue") +
+  labs(title = "Scatter Plot of AAPL vs MSFT Closing Prices",
+       x = "AAPL Closing Price",
+       y = "MSFT Closing Price")
+```
+
+**Scatter Plot Analysis**
+
+1.  **Data Points Distribution**: The data points are densely packed and
+    form a clear upward trend from the bottom left to the top right.
+    This indicates a positive correlation between AAPL and MSFT closing
+    prices, meaning they tend to move in the same direction.
+
+2.  **Trend Line**: The blue line represents the best fit line through
+    the data points, calculated using linear regression. It has a
+    positive slope, which confirms the positive correlation between the
+    two stocks' closing prices.
+
+3.  **Strength of the Correlation**: The data points closely follow the
+    trend line, which indicates a strong linear relationship. This
+    visual supports the Pearson correlation coefficient of approximately
+    0.937 that I calculated, demonstrating a strong positive
+    correlation.
+
+## Spearman Correlation Test
+
+```{r}
+# Calculate Spearman's Rank Correlation Coefficient
+spearman_correlation_coefficient <- cor(aapl_data_common, msft_data_common, method = "spearman")
+
+# Print the Spearman's Rank Correlation Coefficient
+print(spearman_correlation_coefficient)
+
+```
+
+**Spearman Correlation Coefficient (0.9476658)**: This value is also
+close to +1, indicating a very strong positive monotonic relationship
+between the ranked values of AAPL and MSFT closing prices. The Spearman
+correlation is less sensitive to outliers and does not require the
+assumption of normally distributed data, so this high correlation
+suggests that the relationship is strong even without the assumption of
+linearity.
+
+Both correlation coefficients (Pearson and Spearman) being high and very
+similar suggests that the relationship is both linear and monotonic. In
+practical terms, it implies that AAPL and MSFT stocks have moved
+together quite closely during the period analyzed. This could be due to
+various factors, such as the companies' performances, market trends, or
+economic conditions affecting the technology sector in which both
+companies operate.
+
+# 6. Predicting the Breast Cancer Tumor Class
+
+I took a new data set called Breast Cancer which has 11 columns and 699
+rows. The purpose is to correctly identify the class of the tumor using
+different exploratory variables.
+
+When considering a logistic regression model for predicting whether a
+tumor is benign or malignant based on the breast cancer dataset, we need
+to identify potential explanatory (independent) variables that may
+influence the dependent variable, which in this case is the "Class"
+(malignant = 1, benign = 0).
+
+Here's a breakdown of the columns of dataset and their potential as
+explanatory variables:
+
+-   Index/ID: This is likely a unique identifier for each observation
+    and does not provide any predictive power for the model.
+
+-   Cell Thickness (Cl.thickness): This could be an important
+    explanatory variable as it relates to how thick the cell formations
+    are in the breast tissue. Abnormal cell thickness can be indicative
+    of cancerous changes.
+
+-   Cell Size (Cell.size): The size of the cells could be a significant
+    predictor as cancer cells often vary in size and can be larger or
+    smaller than normal cells.
+
+-   Cell Shape (Cell.shape): The shape of cells is another key
+    indicator. Irregularly shaped cells are often associated with
+    malignancy.
+
+-   Marginal Adhesion (Marg.adhesion): This measures how cells stick to
+    their neighboring cells. Changes in adhesion properties can be a
+    sign of malignancy.
+
+-   Epithelial Cell Size (Epith.c.size): Variations in the size of
+    epithelial cells can be indicative of cancerous tissue.
+
+-   Bare Nuclei (Bare.nuclei): This refers to the presence of nuclei
+    without surrounding cytoplasm. It's a significant factor in many
+    cancer diagnoses.
+
+-   Bland Chromatin (Bl.cromatin): The texture of the chromatin in the
+    nucleus can provide information about whether a tumor is benign or
+    malignant.
+
+-   Normal Nucleoli (Normal.nucleoli): Nucleoli within the cell nucleus
+    can change in appearance in cancer cells.
+
+-   Mitoses: The rate of cell division (mitosis) can be an indicator of
+    cancer, as cancer cells often divide more rapidly than normal cells.
+
+### Install Packages and libraries
+
+```{r}
+# Install necessary packages
+if (!require(caret)) {
+    install.packages("caret")
+}
+if (!require(caTools)) {
+    install.packages("caTools")
+}
+
+if (!require(mlbench)) {
+  install.packages("mlbench")
+}
+install.packages("skimr")
+
+```
+
+```{r}
+#Install Library
+library(mlbench)
+library(caret)
+library(caTools)
+library(MASS)
+library(skimr)
+```
+
+### Load Dataset
+
+```{r}
+# Load the dataset
+data("BreastCancer")
+
+```
+
+### Descriptive Statistics
+
+```{r}
+
+BreastCancer_no_Id <- BreastCancer[, !names(BreastCancer) %in% c("Id")]
+
+# Convert all columns to numeric, except 'Class'
+BreastCancer_no_Id[setdiff(names(BreastCancer_no_Id), "Class")] <- 
+  lapply(BreastCancer_no_Id[setdiff(names(BreastCancer_no_Id), "Class")], 
+         function(x) as.numeric(as.character(x)))
+
+# Convert 'Class' to binary (0 and 1)
+BreastCancer_no_Id$Class <- ifelse(BreastCancer_no_Id$Class == "benign", 0, 1)
+
+# Descriptive Statistics
+summary_stats <- data.frame(
+  Mean = apply(BreastCancer_no_Id, 2, function(x) mean(x, na.rm = TRUE)),
+  Median = apply(BreastCancer_no_Id, 2, function(x) median(x, na.rm = TRUE)),
+  SD = apply(BreastCancer_no_Id, 2, function(x) sd(x, na.rm = TRUE))
+)
+
+print(summary_stats)
+
+
+
+```
+
+### **Data Cleaning**
+
+```{r}
+
+# Summarize missing values in each column
+na_count <- sapply(BreastCancer, function(x) sum(is.na(x)))
+na_count
+
+# Convert Bare.nuclei to numeric
+BreastCancer$Bare.nuclei <- as.numeric(as.character(BreastCancer$Bare.nuclei))
+
+# Check if conversion introduced any new NAs
+na_count_bare_nuclei <- sum(is.na(BreastCancer$Bare.nuclei))
+print(paste("Number of NAs in Bare.nuclei after conversion:", na_count_bare_nuclei))
+
+# Impute missing values in Bare.nuclei with median
+BreastCancer$Bare.nuclei[is.na(BreastCancer$Bare.nuclei)] <- median(BreastCancer$Bare.nuclei, na.rm = TRUE)
+
+# Verify that there are no more NAs
+na_count_updated <- sapply(BreastCancer, function(x) sum(is.na(x)))
+na_count_updated
+
+#Checking for unique identifiers 
+sapply(BreastCancer, function(x) length(unique(x)))
+sapply(BreastCancer, function(x) sum(is.na(x)))
+```
+
+### **Data Preparation**
+
+```{r}
+
+# Remove the Id column
+BreastCancer <- BreastCancer[, !names(BreastCancer) %in% c("Id")]
+View(BreastCancer)
+
+# Data preparation
+set.seed(123) # Setting seed for reproducibility
+
+
+# Convert factors to numeric values if necessary
+BreastCancer$Class <- ifelse(BreastCancer$Class == "malignant", 1, 0)
+
+# Splitting the dataset into training and testing sets
+split <- sample.split(BreastCancer$Class, SplitRatio = 0.7)
+train_data <- subset(BreastCancer, split == TRUE)
+test_data <- subset(BreastCancer, split == FALSE)
+
+# Separating predictors and response
+train_x <- train_data[, -ncol(train_data)]
+train_y <- train_data$Class
+test_x <- test_data[, -ncol(test_data)]
+test_y <- test_data$Class
+
+```
+
+### **Fitting a Logistic Regression Model**
+
+```{r}
+
+# Fit logistic regression model
+model <- glm(Class ~ ., data = train_data, family = binomial())
+
+# Summarize the model
+summary(model)
+
+```
+
+### **Evaluating the Model**
+
+```{r}
+# Making predictions
+predictions <- predict(model, newdata = test_x, type = "response")
+predicted_class <- ifelse(predictions > 0.5, 1, 0)
+
+# Confusion Matrix
+confusionMatrix <- table(test_y, predicted_class)
+print(confusionMatrix)
+
+# Calculate accuracy
+accuracy <- sum(diag(confusionMatrix)) / sum(confusionMatrix)
+print(paste("Accuracy:", accuracy))
+
+```
+
+Confusion Matrix:
+
+**True Negatives (TN) - 132:** These are the cases where the model
+correctly predicted the absence of malignancy (benign tumors).
+
+**False Positives (FP) - 5:** These are the cases where the model
+incorrectly predicted malignancy (the tumors were actually benign).
+
+**False Negatives (FN) - 14:** These are the cases where the model
+incorrectly predicted the tumors as benign, but they were actually
+malignant. This is a critical error in medical diagnosis, as it means
+missing out on identifying actual cases of cancer.
+
+**True Positives (TP) - 58:** These are the cases where the model
+correctly identified malignant tumors.
+
+#### Accuracy
+
+The accuracy of your model is (132 + 58)/ (132+5+14+58) ≈ 0.9091 or
+90.91%. This means that about 91% of the time, this model correctly
+predicts the class of the tumor.
