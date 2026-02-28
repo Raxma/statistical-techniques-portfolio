@@ -81,6 +81,10 @@ renv::restore()
 
 - Click Knit
 
+```r
+renv::restore()
+rmarkdown::render("notebooks/statistical_techniques_portfolio.Rmd")
+```
 ### Portfolio note (KTP-ready evidence)
 
 This repo evidences:
