@@ -15,34 +15,18 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
-
-#### Install Required Packages
-
-```{r}
-options(repos = c(CRAN = "https://cran.rstudio.com"))
-install.packages("quantmod")
-install.packages("tidyverse") 
-install.packages("zoo")
-install.packages("dunn.test")
-install.packages("caret")
-install.packages("caTools")
-install.packages("mlbench")
-```
 
 #### 1.4.2 Load Necessary Libraries
 
-```{r}
 library(quantmod) 
 library(tidyverse) 
 library(zoo)
-library(ggplot2)
-library(stats)
 library(dunn.test)
 library(mlbench)
 library(caret)
 library(caTools)
 library(MASS)
+library(skimr)
 ```
 
 # 1. Impact of Corona Pandemic on Apple's Stock Prices
@@ -1098,32 +1082,6 @@ explanatory variables:
 -   Mitoses: The rate of cell division (mitosis) can be an indicator of
     cancer, as cancer cells often divide more rapidly than normal cells.
 
-### Install Packages and libraries
-
-```{r}
-# Install necessary packages
-if (!require(caret)) {
-    install.packages("caret")
-}
-if (!require(caTools)) {
-    install.packages("caTools")
-}
-
-if (!require(mlbench)) {
-  install.packages("mlbench")
-}
-install.packages("skimr")
-
-```
-
-```{r}
-#Install Library
-library(mlbench)
-library(caret)
-library(caTools)
-library(MASS)
-library(skimr)
-```
 
 ### Load Dataset
 
