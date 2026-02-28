@@ -70,21 +70,16 @@ Open the knitted HTML:
 - `notebooks/statistical_techniques_portfolio.html`
 
 ### Option B — Run locally
-1) Open the project folder in RStudio  
-2) Restore exact package versions:
-```r
-renv::restore()
-```
-### Knit the analysis:
 
-- Open notebooks/statistical_techniques_portfolio.Rmd
+1) Open the project folder in RStudio (or set your working directory to the project root).
 
-- Click Knit
+2) Restore dependencies and render:
 
 ```r
 renv::restore()
 rmarkdown::render("notebooks/statistical_techniques_portfolio.Rmd")
 ```
+- Output will be generated as: notebooks/statistical_techniques_portfolio.html
 ### Portfolio note (KTP-ready evidence)
 
 This repo evidences:
